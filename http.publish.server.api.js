@@ -351,7 +351,9 @@ HTTP.publish = function httpPublish(options, publishFunc) {
           // Check to see if document is in published cursor
           cursor.forEach(function(doc) {
             if (!result) {
-              if (doc._id === mongoId) {
+              var idString = doc._id instanceof Meteor.Collection.ObjectID ? doc._id.toHexString() : doc_id;
+              
+              if (idString === mongoId) {
                 result = doc;
               }
             }
