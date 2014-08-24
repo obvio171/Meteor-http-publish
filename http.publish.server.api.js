@@ -377,7 +377,8 @@ HTTP.publish = function httpPublish(options, publishFunc) {
         }
 
         // Make sure that _id isset else create a Meteor id
-        data._id = _publishHTTP.resolveObjectId(data._id);
+        data._id = data._id || _publishHTTP.resolveObjectId();
+
         // Create the document
         try {
           // We should be passed a document in data
@@ -417,7 +418,7 @@ HTTP.publish = function httpPublish(options, publishFunc) {
         if (typeof this.params.id !== "undefined" && this.params.id !== '') {
 
           // Get the mongoId
-          var mongoId = _publishHTTP.resolveObjectId(this.params.id);
+          var mongoId = this.params.id;
 
           // Format the scope for the publish method
           var publishScope = _publishHTTP.getPublishScope(this);
@@ -483,7 +484,7 @@ HTTP.publish = function httpPublish(options, publishFunc) {
         // We would allways expect a string but it could be empty
         if (typeof this.params.id !== "undefined" && this.params.id !== '') {
           // Get the mongoId
-          var mongoId = _publishHTTP.resolveObjectId(this.params.id);
+          var mongoId = this.params.id;
 
           var updateMethodHandler = _publishHTTP.getMethodHandler(collection, 'update');
           // Create the document
@@ -527,7 +528,7 @@ HTTP.publish = function httpPublish(options, publishFunc) {
         // We would allways expect a string but it could be empty
         if (typeof this.params.id !== "undefined" && this.params.id !== '') {
           // Get the mongoId
-          var mongoId = _publishHTTP.resolveObjectId(this.params.id);
+          var mongoId = this.params.id;
 
           var removeMethodHandler = _publishHTTP.getMethodHandler(collection, 'remove');
           // Create the document
