@@ -393,11 +393,11 @@ HTTP.publish = function httpPublish(options, publishFunc) {
       // We have to have a publish method inorder to publish id? The user could
       // just write a publish all if needed - better to make this explicit
       methods[name + '/:id'].get = function(data) {
-        // Get the mongoId
-        var mongoId = this.params.id;
-
         // We would allways expect a string but it could be empty
-        if (mongoId !== '') {
+        if (typeof this.params.id !== "undefined" && this.params.id !== '') {
+
+          // Get the mongoId
+          var mongoId = _publishHTTP.resolveObjectId(this.params.id);
 
           // Format the scope for the publish method
           var publishScope = _publishHTTP.getPublishScope(this);
@@ -451,11 +451,10 @@ HTTP.publish = function httpPublish(options, publishFunc) {
         data = options.beforeDocumentPut.apply(_publishHTTP.getPublishScope(this), [data]) || data;
       }
       methods[name + '/:id'].put = function(data) {
-        // Get the mongoId
-        var mongoId = this.params.id;
-
         // We would allways expect a string but it could be empty
-        if (mongoId !== '') {
+        if (typeof this.params.id !== "undefined" && this.params.id !== '') {
+          // Get the mongoId
+          var mongoId = _publishHTTP.resolveObjectId(this.params.id);
 
           var updateMethodHandler = _publishHTTP.getMethodHandler(collection, 'update');
           // Create the document
@@ -485,11 +484,10 @@ HTTP.publish = function httpPublish(options, publishFunc) {
         data = options.beforeDocumentDelete.apply(_publishHTTP.getPublishScope(this), [data]) || data;
       }
       methods[name + '/:id'].delete = function(data) {
-         // Get the mongoId
-        var mongoId = this.params.id;
-
         // We would allways expect a string but it could be empty
-        if (mongoId !== '') {
+        if (typeof this.params.id !== "undefined" && this.params.id !== '') {
+          // Get the mongoId
+          var mongoId = _publishHTTP.resolveObjectId(this.params.id);
 
           var removeMethodHandler = _publishHTTP.getMethodHandler(collection, 'remove');
           // Create the document
