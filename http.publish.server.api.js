@@ -206,7 +206,7 @@ _publishHTTP.resolveObjectId = function (idValue) {
     return new Meteor.Collection.ObjectID();
   }
 
-  if (!(idValue instanceof Meteor.Collection.ObjectID)) {
+  if (!(idValue instanceof Meteor.Collection.ObjectID) && Meteor.Collection.ObjectID.isValid(idValue)) {
     // convert to object id value
     return new Meteor.Collection.ObjectID(idValue);
   }
@@ -431,9 +431,9 @@ HTTP.publish = function httpPublish(options, publishFunc) {
           // Check to see if document is in published cursor
           cursor.forEach(function (doc) {
             if (!document) {
-              var idString = doc._id instanceof Meteor.Collection.ObjectID ? doc._id.toHexString() : doc_id;
+              var match = (doc._id instanceof Meteor.Collection.ObjectID ? doc._id.toHexString() : doc._id) === (mongoId instanceof Meteor.Collection.ObjectID ? mongoId.toHexString() : mongoId);
 
-              if (idString === mongoId) {
+              if (match) {
                 document = doc;
               }
             }
