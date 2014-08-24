@@ -193,6 +193,26 @@ _publishHTTP.unpublish = function httpPublishUnpublish(/* name or collection, op
 };
 
 /**
+ * @method _publishHTTP.resolveObjectId
+ * @private
+ * @param {String|Meteor.Collection.ObjectID} idValue
+ * @returns {Meteor.Collection.ObjectID}
+ */
+_publishHTTP.resolveObjectId = function (idValue) {
+  if (typeof idValue === "undefined" || !idValue) {
+    // generate a new random object id value
+    return new Meteor.Collection.ObjectID();
+  }
+
+  if (!(idValue instanceof Meteor.Collection.ObjectID)) {
+    // convert to object id value
+    return new Meteor.Collection.ObjectID(idValue);
+  }
+
+  return idValue;
+};
+
+/**
  * @method HTTP.publishFormats
  * @public
  * @param {Object} newHandlers
@@ -219,15 +239,25 @@ HTTP.publishFormats = function httpPublishFormats(newHandlers) {
 /**
  * @method HTTP.publish
  * @public
- * @param {Object} options
- * @param {String} [name] - Restpoint name (url prefix). Optional if `collection` is passed. Will mount on `/api/collectionName` by default.
+ * @param {Object}   options
+ * @param {String}   [name] - Restpoint name (url prefix). Optional if `collection` is passed. Will mount on `/api/collectionName` by default.
  * @param {Meteor.Collection} [collection] - Meteor.Collection instance. Required for all restpoints except collectionGet
- * @param {String} [options.defaultFormat='json'] - Format to use for responses when `format` is not found in the query string.
- * @param {String} [options.collectionGet=true] - Add GET restpoint for collection? Requires a publish function.
- * @param {String} [options.collectionPost=true] - Add POST restpoint for adding documents to the collection?
- * @param {String} [options.documentGet=true] - Add GET restpoint for documents in collection? Requires a publish function.
- * @param {String} [options.documentPut=true] - Add PUT restpoint for updating a document in the collection?
- * @param {String} [options.documentDelete=true] - Add DELETE restpoint for deleting a document in the collection?
+ * @param {String}   [options.defaultFormat='json'] - Format to use for responses when `format` is not found in the query string.
+ * @param {String}   [options.collectionGet=true] - Add GET restpoint for collection? Requires a publish function.
+ * @param {Function} [options.beforeCollectionGet] - Callback to execute before actions. i.e. function (data) { return data; }. Values this.query, this.params, this.userId are also made available.
+ * @param {Function} [options.afterCollectionGet] - Callback to execute after actions. i.e. function (data) { return data; }. Values this.query, this.params, this.userId are also made available.
+ * @param {String}   [options.collectionPost=true] - Add POST restpoint for adding documents to the collection?
+ * @param {Function} [options.beforeCollectionPost] - Callback to execute before actions. i.e. function (data) { return data; }. Values this.query, this.params, this.userId are also made available.
+ * @param {Function} [options.afterCollectionPost] - Callback to execute after actions. i.e. function (data) { return data; }. Values this.query, this.params, this.userId are also made available.
+ * @param {String}   [options.documentGet=true] - Add GET restpoint for documents in collection? Requires a publish function.
+ * @param {Function} [options.beforeDocumentGet] - Callback to execute before actions. i.e. function (data) { return data; }. Values this.query, this.params, this.userId are also made available.
+ * @param {Function} [options.afterDocumentGet] - Callback to execute after actions. i.e. function (data) { return data; }. Values this.query, this.params, this.userId are also made available.
+ * @param {String}   [options.documentPut=true] - Add PUT restpoint for updating a document in the collection?
+ * @param {Function} [options.beforeDocumentPut] - Callback to execute before actions. i.e. function (data) { return data; }. Values this.query, this.params, this.userId are also made available.
+ * @param {Function} [options.afterDocumentPut] - Callback to execute after actions. i.e. function (data) { return data; }. Values this.query, this.params, this.userId are also made available.
+ * @param {String}   [options.documentDelete=true] - Add DELETE restpoint for deleting a document in the collection?
+ * @param {Function} [options.beforeDocumentDelete] - Callback to execute before actions. i.e. function (data) { return data; }. Values this.query, this.params, this.userId are also made available.
+ * @param {Function} [options.afterDocumentDelete] - Callback to execute after actions. i.e. function (data) { return data; }. Values this.query, this.params, this.userId are also made available.
  * @param {Function} [publishFunc] - A publish function. Required to mount GET restpoints.
  * @returns {undefined}
  * @todo this should use options argument instead of optional args
@@ -259,10 +289,20 @@ HTTP.publish = function httpPublish(options, publishFunc) {
     collection: null,
     defaultFormat: null,
     collectionGet: true,
+    beforeCollectionGet: null,
+    afterCollectionGet: null,
     collectionPost: true,
+    beforeCollectionPost: null,
+    afterCollectionPost: null,
     documentGet: true,
+    beforeDocumentGet: null,
+    afterDocumentGet: null,
     documentPut: true,
-    documentDelete: true
+    beforeDocumentPut: null,
+    afterDocumentPut: null,
+    documentDelete: true,
+    beforeDocumentDelete: null,
+    afterDocumentDelete: null
   }, options || {});
   
   var collection = options.collection;
@@ -286,6 +326,10 @@ HTTP.publish = function httpPublish(options, publishFunc) {
   methods[name] = {};
 
   if (options.collectionGet && publishFunc) {
+    // execute the before handler
+    if (typeof options.beforeCollectionGet === "function") {
+      data = options.beforeCollectionGet.apply(_publishHTTP.getPublishScope(this), [data]) || data;
+    }
     // Return the published documents
     methods[name].get = function(data) {
       // Format the scope for the publish method
@@ -304,15 +348,23 @@ HTTP.publish = function httpPublish(options, publishFunc) {
         return _publishHTTP.error(200, [], this);
       }
     };
+    // execute the after handler
+    if (typeof options.afterCollectionGet === "function") {
+      options.afterCollectionGet.apply(_publishHTTP.getPublishScope(this), [data]);
+    }
   }
 
   if (collection) {
-    // If we have a collection then add insert method
     if (options.collectionPost) {
+      // If we have a collection then add insert method
+      // execute the before handler
+      if (typeof options.beforeCollectionPost === "function") {
+        data = options.beforeCollectionPost.apply(_publishHTTP.getPublishScope(this), [data]) || data;
+      }
       methods[name].post = function(data) {
         var insertMethodHandler = _publishHTTP.getMethodHandler(collection, 'insert');
         // Make sure that _id isset else create a Meteor id
-        data._id = data._id || Random.id();
+        data._id = _publishHTTP.resolveObjectId(data._id);
         // Create the document
         try {
           // We should be passed a document in data
@@ -324,12 +376,20 @@ HTTP.publish = function httpPublish(options, publishFunc) {
           return _publishHTTP.error(err.error, { error: err.message }, this);
         }
       };
+      // execute the after handler
+      if (typeof options.afterCollectionPost === "function") {
+        options.afterCollectionPost.apply(_publishHTTP.getPublishScope(this), [data]);
+      }
     }
 
     // We also add the findOne, update and remove methods
     methods[name + '/:id'] = {};
     
     if (options.documentGet && publishFunc) {
+      // execute the before handler
+      if (typeof options.beforeDocumentGet === "function") {
+        data = options.beforeDocumentGet.apply(_publishHTTP.getPublishScope(this), [data]) || data;
+      }
       // We have to have a publish method inorder to publish id? The user could
       // just write a publish all if needed - better to make this explicit
       methods[name + '/:id'].get = function(data) {
@@ -379,9 +439,17 @@ HTTP.publish = function httpPublish(options, publishFunc) {
           return _publishHTTP.error(400, { error: 'Method expected a document id' }, this);
         }
       };
+      // execute the after handler
+      if (typeof options.afterDocumentGet === "function") {
+        options.afterDocumentGet.apply(_publishHTTP.getPublishScope(this), [data]);
+      }
     }
 
     if (options.documentPut) {
+      // execute the before handler
+      if (typeof options.beforeDocumentPut === "function") {
+        data = options.beforeDocumentPut.apply(_publishHTTP.getPublishScope(this), [data]) || data;
+      }
       methods[name + '/:id'].put = function(data) {
         // Get the mongoId
         var mongoId = this.params.id;
@@ -405,9 +473,17 @@ HTTP.publish = function httpPublish(options, publishFunc) {
           return _publishHTTP.error(400, { error: 'Method expected a document id' }, this);
         }      
       };
+      // execute the after handler
+      if (typeof options.afterDocumentPut === "function") {
+        options.afterDocumentPut.apply(_publishHTTP.getPublishScope(this), [data]);
+      }
     }
 
     if (options.documentDelete) {
+      // execute the before handler
+      if (typeof options.beforeDocumentDelete === "function") {
+        data = options.beforeDocumentDelete.apply(_publishHTTP.getPublishScope(this), [data]) || data;
+      }
       methods[name + '/:id'].delete = function(data) {
          // Get the mongoId
         var mongoId = this.params.id;
@@ -431,6 +507,10 @@ HTTP.publish = function httpPublish(options, publishFunc) {
           return _publishHTTP.error(400, { error: 'Method expected a document id' }, this);
         }     
       };
+      // execute the after handler
+      if (typeof options.afterDocumentDelete === "function") {
+        options.afterDocumentDelete.apply(_publishHTTP.getPublishScope(this), [data]);
+      }
     }
 
   }
